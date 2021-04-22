@@ -6,6 +6,8 @@ http://logstash.net/
 
 Changelog
 =========
+0.4.8
+  - Add heartbeat support to AMQP handler
 0.4.7
   - Add couple of sensitive fields to the skip_list
 0.4.6

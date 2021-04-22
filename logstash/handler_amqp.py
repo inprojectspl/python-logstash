@@ -41,13 +41,20 @@ class AMQPLogstashHandler(SocketHandler, object):
         host (socket.getfqdn()).
     :param facility: Replace facility with specified value. If specified,
         record.name will be passed as `logger` parameter.
+    :param heartbeat: Controls AMQP heartbeat timeout negotiation
+        during connection tuning. An integer value always overrides the value
+        proposed by broker. Use 0 to deactivate heartbeats and None to always
+        accept the broker's proposal. If a callable is given, it will be called
+        with the connection instance and the heartbeat timeout proposed by broker
+        as its arguments. The callback should return a non-negative integer that
+        will be used to override the broker's proposal (default is None).
     """
 
     def __init__(self, host='localhost', port=5672, username='guest',
                  password='guest', exchange='logstash', exchange_type='fanout',
                  virtual_host='/', message_type='logstash', tags=None,
                  durable=False, passive=False, version=0, extra_fields=True,
-                 fqdn=False, facility=None, exchange_routing_key=''):
+                 fqdn=False, facility=None, exchange_routing_key='', heartbeat=None):
 
 
         # AMQP parameters
@@ -61,6 +68,7 @@ class AMQPLogstashHandler(SocketHandler, object):
         self.declare_exchange_passively = passive
         self.virtual_host = virtual_host
         self.routing_key = exchange_routing_key
+        self.heartbeat = heartbeat
 
         SocketHandler.__init__(self, host, port)
 
@@ -86,7 +94,8 @@ class AMQPLogstashHandler(SocketHandler, object):
                           self.routing_key,
                           self.exchange_is_durable,
                           self.declare_exchange_passively,
-                          self.exchange_type)
+                          self.exchange_type,
+                          self.heartbeat)
 
     def makePickle(self, record):
         return self.formatter.format(record)
@@ -95,12 +104,15 @@ class AMQPLogstashHandler(SocketHandler, object):
 class PikaSocket(object):
 
     def __init__(self, host, port, username, password, virtual_host, exchange,
-                routing_key, durable, passive, exchange_type):
+                routing_key, durable, passive, exchange_type, heartbeat):
 
         # create connection parameters
         credentials = pika.PlainCredentials(username, password)
-        parameters = pika.ConnectionParameters(host, port, virtual_host,
-                                               credentials)
+        parameters = pika.ConnectionParameters(host=host,
+                                               port=port,
+                                               virtual_host=virtual_host,
+                                               credentials=credentials,
+                                               heartbeat=heartbeat)
 
         # create connection & channel
         self.connection = pika.BlockingConnection(parameters)
